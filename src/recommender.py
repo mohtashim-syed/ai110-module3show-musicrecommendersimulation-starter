@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Tuple
 
 # ---------------------------------------------------------------------------
-# Algorithm Recipe — point values for each feature (max total = 10.0 pts)
+# Algorithm Recipe — point values for each feature (max total = 12.5 pts)
 #
 # Feature            Points    Why
 # ─────────────────  ────────  ──────────────────────────────────────────────
@@ -17,13 +17,23 @@ from typing import List, Dict, Tuple
 #                              the edge case genre + energy alone can't catch
 # Acousticness sim.  up to +0.5 Texture modifier (organic vs synthetic) —
 #                              meaningful but rarely the deciding factor
+# Popularity sim.    up to +1.0 Proximity to target mainstream level
+# Release decade     up to +0.5 Stepped decay by era distance
+# Mood intensity     up to +0.5 Proximity to desired emotional intensity
+# Key match          +0.25     Exact match (major/minor)
+# Complexity sim.    up to +0.25 Proximity to desired musical density
 # ---------------------------------------------------------------------------
 _POINTS = {
-    "mood_match":    3.0,
-    "energy_max":    4.0,
-    "genre_match":   1.0,
-    "valence_max":   1.5,
-    "acoustic_max":  0.5,
+    "mood_match":         3.0,
+    "energy_max":         4.0,
+    "genre_match":        1.0,
+    "valence_max":        1.5,
+    "acoustic_max":       0.5,
+    "popularity_max":     1.0,    # proximity to target mainstream level
+    "decade_max":         0.5,    # stepped decay by era distance
+    "mood_intensity_max": 0.5,    # proximity to desired emotional intensity
+    "key_match":          0.25,   # exact match (major/minor)
+    "complexity_max":     0.25,   # proximity to desired musical density
 }
 
 
@@ -49,6 +59,11 @@ class Song:
     speechiness: float = 0.0
     instrumentalness: float = 0.0
     liveness: float = 0.0
+    popularity: int = 50
+    release_decade: int = 2020
+    mood_intensity: float = 0.5
+    key: str = "major"
+    complexity: float = 0.5
 
 
 @dataclass
@@ -84,12 +99,17 @@ def load_songs(csv_path: str) -> List[Dict]:
                 "speechiness":      float(row.get("speechiness", 0.0)),
                 "instrumentalness": float(row.get("instrumentalness", 0.0)),
                 "liveness":         float(row.get("liveness", 0.0)),
+                "popularity":       int(row.get("popularity", 50)),
+                "release_decade":   int(row.get("release_decade", 2020)),
+                "mood_intensity":   float(row.get("mood_intensity", 0.5)),
+                "key":              row.get("key", "major"),
+                "complexity":       float(row.get("complexity", 0.5)),
             })
     return songs
 
 
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
-    """Score one song against user preferences and return (total_pts, reasons_list). Max score = 10.0."""
+    """Score one song against user preferences and return (total_pts, reasons_list). Max score = 12.5."""
     score = 0.0
     reasons = []
 
@@ -139,6 +159,55 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
         f"(song {song['acousticness']:.2f}, target {target_acoustic:.2f})"
     )
 
+    # ── Popularity (proximity, up to +1.0) ────────────────────────────────────
+    # target_popularity=80 → mainstream listener; target_popularity=20 → underground fan
+    target_pop = float(user_prefs.get("target_popularity", 50))
+    pop_pts = _POINTS["popularity_max"] * (1.0 - abs(song["popularity"] - target_pop) / 100.0)
+    score += pop_pts
+    reasons.append(
+        f"+{pop_pts:.2f} popularity similarity "
+        f"(song {song['popularity']}, target {int(target_pop)})"
+    )
+
+    # ── Release Decade (stepped, up to +0.5) ──────────────────────────────────
+    # Each decade away from the target halves the remaining points.
+    # Same decade → 0.5 pts; 1 decade off → 0.25 pts; 2 off → 0.125 pts; etc.
+    target_decade = int(user_prefs.get("target_decade", 2020))
+    decades_away = abs(song["release_decade"] - target_decade) // 10
+    decade_pts = _POINTS["decade_max"] * (0.5 ** decades_away)
+    score += decade_pts
+    reasons.append(
+        f"+{decade_pts:.2f} release era "
+        f"(song {song['release_decade']}, target {target_decade})"
+    )
+
+    # ── Mood Intensity (proximity, up to +0.5) ────────────────────────────────
+    # Separates subtle expressions from overwhelming ones within the same mood label.
+    target_intensity = float(user_prefs.get("target_mood_intensity", 0.5))
+    intensity_pts = _POINTS["mood_intensity_max"] * (1.0 - abs(song["mood_intensity"] - target_intensity))
+    score += intensity_pts
+    reasons.append(
+        f"+{intensity_pts:.2f} mood intensity "
+        f"(song {song['mood_intensity']:.2f}, target {target_intensity:.2f})"
+    )
+
+    # ── Key (categorical, +0.25 on exact match) ───────────────────────────────
+    # Major keys sound brighter/resolved; minor keys sound darker/tense.
+    target_key = user_prefs.get("target_key", "")
+    if target_key and song["key"] == target_key:
+        score += _POINTS["key_match"]
+        reasons.append(f"+{_POINTS['key_match']:.2f} key matches '{song['key']}'")
+
+    # ── Complexity (proximity, up to +0.25) ───────────────────────────────────
+    # Separates minimalist loops from intricate, layered arrangements.
+    target_complexity = float(user_prefs.get("target_complexity", 0.5))
+    complexity_pts = _POINTS["complexity_max"] * (1.0 - abs(song["complexity"] - target_complexity))
+    score += complexity_pts
+    reasons.append(
+        f"+{complexity_pts:.2f} complexity "
+        f"(song {song['complexity']:.2f}, target {target_complexity:.2f})"
+    )
+
     return round(score, 4), reasons
 
 
@@ -171,10 +240,15 @@ class Recommender:
     def _profile_to_dict(self, user: UserProfile) -> Dict:
         """Converts a UserProfile dataclass into a dict for score_song()."""
         return {
-            "genre":             user.favorite_genre,
-            "mood":              user.favorite_mood,
-            "target_energy":     user.target_energy,
-            "target_acousticness": 0.8 if user.likes_acoustic else 0.2,
+            "genre":                  user.favorite_genre,
+            "mood":                   user.favorite_mood,
+            "target_energy":          user.target_energy,
+            "target_acousticness":    0.8 if user.likes_acoustic else 0.2,
+            "target_popularity":      50,
+            "target_decade":          2020,
+            "target_mood_intensity":  0.5,
+            "target_key":             "",
+            "target_complexity":      0.5,
         }
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
@@ -191,6 +265,11 @@ class Recommender:
                 "speechiness":      song.speechiness,
                 "instrumentalness": song.instrumentalness,
                 "liveness":         song.liveness,
+                "popularity":       song.popularity,
+                "release_decade":   song.release_decade,
+                "mood_intensity":   song.mood_intensity,
+                "key":              song.key,
+                "complexity":       song.complexity,
             }
             score, _ = score_song(user_dict, song_dict)
             scored.append((song, score))
@@ -210,6 +289,11 @@ class Recommender:
             "speechiness":      song.speechiness,
             "instrumentalness": song.instrumentalness,
             "liveness":         song.liveness,
+            "popularity":       song.popularity,
+            "release_decade":   song.release_decade,
+            "mood_intensity":   song.mood_intensity,
+            "key":              song.key,
+            "complexity":       song.complexity,
         }
         _, reasons = score_song(user_dict, song_dict)
         return " | ".join(reasons)
