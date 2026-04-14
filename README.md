@@ -245,11 +245,272 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+Run any profile with:
+```bash
+python src/main.py <profile_name>
+python src/main.py --list          # show all profiles
+```
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+---
+
+### Standard Profile 1 — `high_energy_pop`
+
+**Expectation:** Sunrise City (pop/happy, energy=0.82) should rank first — it matches genre, mood, and is close on all numericals.
+
+```
+Loaded songs: 20
+
+============================================================
+  Music Recommender Simulation
+  Profile : high_energy_pop
+  genre=pop  |  mood=happy  |  energy=0.9
+============================================================
+
+  Top 5 Recommendations
+------------------------------------------------------------
+
+  #1  Sunrise City  —  Neon Echo
+       Score : 8.78 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'happy'
+         +1.84 energy similarity (song 0.82, target 0.90)
+         +2.0 genre matches 'pop'
+         +1.48 valence similarity (song 0.84, target 0.85)
+         +0.45 acousticness similarity (song 0.18, target 0.08)
+
+  #2  Rooftop Lights  —  Indigo Parade
+       Score : 6.53 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'happy'
+         +1.72 energy similarity (song 0.76, target 0.90)
+         +1.44 valence similarity (song 0.81, target 0.85)
+         +0.36 acousticness similarity (song 0.35, target 0.08)
+
+  #3  Gym Hero  —  Max Pulse
+       Score : 5.80 / 9.0 pts
+       Why   :
+         +1.94 energy similarity (song 0.93, target 0.90)
+         +2.0 genre matches 'pop'
+         +1.38 valence similarity (song 0.77, target 0.85)
+         +0.48 acousticness similarity (song 0.05, target 0.08)
+
+  #4  Neon Seoul  —  Starfall K
+       Score : 3.87 / 9.0 pts
+
+  #5  Gold Chain Gospel  —  Street Almanac
+       Score : 3.69 / 9.0 pts
+
+============================================================
+```
+
+**What happened:** Sunrise City wins easily (8.78). Rooftop Lights ranks #2 despite being "indie pop" — the happy mood match (+3.0) overrides the genre miss. Gym Hero ranks #3 because it misses mood (intense ≠ happy), losing all 3.0 pts instantly. Confirms that mood is the dominant signal.
+
+---
+
+### Standard Profile 2 — `chill_lofi`
+
+**Expectation:** Library Rain and Midnight Coding should dominate — both are lofi/chill.
+
+```
+============================================================
+  Music Recommender Simulation
+  Profile : chill_lofi
+  genre=lofi  |  mood=chill  |  energy=0.38
+============================================================
+
+  Top 5 Recommendations
+------------------------------------------------------------
+
+  #1  Library Rain  —  Paper Lanterns
+       Score : 8.88 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'chill'
+         +1.94 energy similarity (song 0.35, target 0.38)
+         +2.0 genre matches 'lofi'
+         +1.47 valence similarity (song 0.60, target 0.58)
+         +0.47 acousticness similarity (song 0.86, target 0.80)
+
+  #2  Midnight Coding  —  LoRoom
+       Score : 8.85 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'chill'
+         +1.92 energy similarity (song 0.42, target 0.38)
+         +2.0 genre matches 'lofi'
+         +1.47 valence similarity (song 0.56, target 0.58)
+         +0.45 acousticness similarity (song 0.71, target 0.80)
+
+  #3  Spacewalk Thoughts  —  Orbit Bloom
+       Score : 6.63 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'chill'
+         +1.80 energy similarity (song 0.28, target 0.38)
+         +1.40 valence similarity (song 0.65, target 0.58)
+         +0.44 acousticness similarity (song 0.92, target 0.80)
+
+  #4  Focus Flow  —  LoRoom   Score : 5.93
+  #5  Willow and Wire  —  June Sparrow   Score : 3.77
+
+============================================================
+```
+
+**What happened:** Library Rain and Midnight Coding are nearly tied (8.88 vs 8.85) — a difference of only 0.03 pts driven entirely by their energy distance from the 0.38 target. Spacewalk Thoughts ranks #3 by mood alone (chill match) despite wrong genre. Focus Flow (#4) scores lower because its mood is "focused," not "chill," losing the full 3.0-pt mood bonus.
+
+---
+
+### Standard Profile 3 — `deep_intense_rock`
+
+**Expectation:** Storm Runner (rock/intense, energy=0.91) should be a near-perfect match.
+
+```
+============================================================
+  Music Recommender Simulation
+  Profile : deep_intense_rock
+  genre=rock  |  mood=intense  |  energy=0.92
+============================================================
+
+  Top 5 Recommendations
+------------------------------------------------------------
+
+  #1  Storm Runner  —  Voltline
+       Score : 8.94 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'intense'
+         +1.98 energy similarity (song 0.91, target 0.92)
+         +2.0 genre matches 'rock'
+         +1.46 valence similarity (song 0.48, target 0.45)
+         +0.50 acousticness similarity (song 0.10, target 0.10)
+
+  #2  Gym Hero  —  Max Pulse
+       Score : 6.47 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'intense'
+         +1.98 energy similarity (song 0.93, target 0.92)
+         +1.02 valence similarity (song 0.77, target 0.45)
+         +0.47 acousticness similarity (song 0.05, target 0.10)
+
+  #3  Iron Cathedral  —  Grave Circuit   Score : 3.59
+  #4  Night Drive Loop  —  Neon Echo     Score : 3.54
+  #5  Club Afterglow  —  Tessera         Score : 3.50
+
+============================================================
+```
+
+**What happened:** Storm Runner scores 8.94 — almost perfect. Gym Hero ranks #2 because it shares mood=intense (+3.0) and energy is extremely close, but valence (0.77 vs target 0.45) costs 0.48 pts. Iron Cathedral (#3) has no mood or genre match — it survives on energy+valence proximity alone.
+
+---
+
+### Adversarial Profile 1 — `sad_banger`
+
+**Design:** mood=sad + energy=0.92 are contradictory. genre=metal means no song in the catalog is metal+sad.
+
+```
+============================================================
+  Music Recommender Simulation
+  Profile : sad_banger
+  genre=metal  |  mood=sad  |  energy=0.92
+============================================================
+
+  Top 5 Recommendations
+------------------------------------------------------------
+
+  #1  Iron Cathedral  —  Grave Circuit
+       Score : 5.90 / 9.0 pts
+       Why   :
+         +1.90 energy similarity (song 0.97, target 0.92)
+         +2.0 genre matches 'metal'
+         +1.50 valence similarity (song 0.25, target 0.25)
+         +0.50 acousticness similarity (song 0.08, target 0.08)
+
+  #2  Heartbreak Porch  —  Dusty Hollow
+       Score : 5.55 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'sad'
+         +0.98 energy similarity (song 0.41, target 0.92)
+         +1.41 valence similarity (song 0.31, target 0.25)
+         +0.16 acousticness similarity (song 0.76, target 0.08)
+
+  #3  Storm Runner  —  Voltline   Score : 3.62
+  #4  Night Drive Loop  —  Neon Echo   Score : 3.23
+  #5  Club Afterglow  —  Tessera   Score : 3.19
+
+============================================================
+```
+
+**The trick exposed:** Iron Cathedral (angry metal) ranks #1 over Heartbreak Porch (the only sad song) — 5.90 vs 5.55. The mood=sad signal (+3.0) for Heartbreak Porch is almost entirely wiped out by the energy mismatch penalty: asking for energy=0.92 but the song is 0.41 costs 1.02 pts in energy alone, plus 0.34 pts on acousticness. The genre+valence match on Iron Cathedral compensates enough to beat the actual sad song. The system cannot resolve this contradiction — no song in the catalog is simultaneously high-energy and sad.
+
+---
+
+### Adversarial Profile 2 — `ghost_genre`
+
+**Design:** genre=bluegrass does not exist in the catalog. The +2.0 genre bonus is permanently unavailable. Max achievable score drops from 9.0 to 7.0.
+
+```
+============================================================
+  Music Recommender Simulation
+  Profile : ghost_genre
+  genre=bluegrass  |  mood=chill  |  energy=0.35
+============================================================
+
+  Top 5 Recommendations
+------------------------------------------------------------
+
+  #1  Library Rain  —  Paper Lanterns
+       Score : 6.94 / 9.0 pts
+
+  #2  Spacewalk Thoughts  —  Orbit Bloom
+       Score : 6.75 / 9.0 pts
+
+  #3  Midnight Coding  —  LoRoom
+       Score : 6.72 / 9.0 pts
+
+  #4  Willow and Wire  —  June Sparrow   Score : 3.89
+  #5  Focus Flow  —  LoRoom             Score : 3.85
+
+============================================================
+```
+
+**The trick exposed:** The top-3 results (6.94, 6.75, 6.72) are nearly identical — separated by only 0.22 pts. Without the genre signal, the ranking collapses to mood+energy+valence. A tiny energy difference (Library Rain 0.35 = perfect match, Midnight Coding 0.42 = 0.07 away) is now the deciding factor between #1 and #3. There is a hard cliff between #3 (6.72) and #4 (3.89) — caused by the loss of the mood match for songs with moods other than "chill."
+
+---
+
+### Adversarial Profile 3 — `neutral_listener`
+
+**Design:** All numerical targets at 0.5 — the midpoint of every scale. No song scores very high or very low on any numerical feature. Only categorical matches can separate the pack.
+
+```
+============================================================
+  Music Recommender Simulation
+  Profile : neutral_listener
+  genre=ambient  |  mood=relaxed  |  energy=0.5
+============================================================
+
+  Top 5 Recommendations
+------------------------------------------------------------
+
+  #1  Coffee Shop Stories  —  Slow Stereo
+       Score : 6.46 / 9.0 pts
+       Why   :
+         +3.0 mood matches 'relaxed'
+         +1.74 energy similarity (song 0.37, target 0.50)
+         +1.41 valence similarity (song 0.71, target 0.65)
+         +0.30 acousticness similarity (song 0.89, target 0.50)
+
+  #2  Spacewalk Thoughts  —  Orbit Bloom
+       Score : 5.35 / 9.0 pts
+       Why   :
+         +1.56 energy similarity (song 0.28, target 0.50)
+         +2.0 genre matches 'ambient'
+         +1.50 valence similarity (song 0.65, target 0.65)
+         +0.29 acousticness similarity (song 0.92, target 0.50)
+
+  #3  Midnight Coding  —  LoRoom   Score : 3.60
+  #4  Focus Flow  —  LoRoom        Score : 3.57
+  #5  Velvet Hours  —  Sable & Rose Score : 3.50
+
+============================================================
+```
+
+**The trick exposed:** Coffee Shop Stories wins on mood alone (+3.0). Spacewalk Thoughts wins on genre alone (+2.0). After those two categorical winners, #3–#5 are separated by only 0.10 pts — their scores are nearly identical because every numerical target at 0.5 gives all mid-range songs a near-equal proximity score. The system produces a valid ranking but it has very low confidence — the bottom four results are essentially a coin flip.
 
 ---
 
