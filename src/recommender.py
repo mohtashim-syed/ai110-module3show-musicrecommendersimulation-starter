@@ -3,15 +3,15 @@ from dataclasses import dataclass
 from typing import List, Dict, Tuple
 
 # ---------------------------------------------------------------------------
-# Algorithm Recipe — point values for each feature (max total = 9.0 pts)
+# Algorithm Recipe — point values for each feature (max total = 10.0 pts)
 #
 # Feature            Points    Why
 # ─────────────────  ────────  ──────────────────────────────────────────────
 # Mood match         +3.0      Most context-sensitive — listeners say "I want
 #                              something chill NOW" even outside their genre
-# Energy similarity  up to +2.0 Widest perceptual spread in dataset (0.22–0.97)
+# Energy similarity  up to +4.0 Widest perceptual spread in dataset (0.22–0.97)
 #                              Wrong energy feels immediately wrong
-# Genre match        +2.0      Cultural identity — prevents jarring cross-genre
+# Genre match        +1.0      Cultural identity — prevents jarring cross-genre
 #                              surprises, but ranks below mood intentionally
 # Valence similarity up to +1.5 Separates "fast-happy" from "fast-sad" —
 #                              the edge case genre + energy alone can't catch
@@ -20,8 +20,8 @@ from typing import List, Dict, Tuple
 # ---------------------------------------------------------------------------
 _POINTS = {
     "mood_match":    3.0,
-    "energy_max":    2.0,
-    "genre_match":   2.0,
+    "energy_max":    4.0,
+    "genre_match":   1.0,
     "valence_max":   1.5,
     "acoustic_max":  0.5,
 }
@@ -89,7 +89,7 @@ def load_songs(csv_path: str) -> List[Dict]:
 
 
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
-    """Score one song against user preferences and return (total_pts, reasons_list). Max score = 9.0."""
+    """Score one song against user preferences and return (total_pts, reasons_list). Max score = 10.0."""
     score = 0.0
     reasons = []
 
@@ -99,7 +99,7 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
         score += _POINTS["mood_match"]
         reasons.append(f"+{_POINTS['mood_match']:.1f} mood matches '{song['mood']}'")
 
-    # ── Energy (proximity, up to +2.0) ────────────────────────────────────────
+    # ── Energy (proximity, up to +4.0) ────────────────────────────────────────
     target_energy = float(
         user_prefs.get("target_energy") if user_prefs.get("target_energy") is not None
         else user_prefs.get("energy", 0.5)
@@ -111,7 +111,7 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
         f"(song {song['energy']:.2f}, target {target_energy:.2f})"
     )
 
-    # ── Genre (categorical, +2.0 on exact match) ──────────────────────────────
+    # ── Genre (categorical, +1.0 on exact match) ──────────────────────────────
     target_genre = user_prefs.get("genre") or user_prefs.get("favorite_genre", "")
     if song["genre"] == target_genre:
         score += _POINTS["genre_match"]
