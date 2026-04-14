@@ -144,4 +144,32 @@ Add at least 30–40 more songs specifically targeting the 0.45–0.70 energy ra
 
 ## 9. Personal Reflection
 
-Building this system made it clear how much work goes into what feels like a simple feature in a real app. When Spotify says "Daily Mix" or "Because you listened to X," there is a scoring and ranking process happening behind it — but at a scale millions of times larger than this simulation, with behavioral signals (skips, replays, shares) that this system completely ignores. The most surprising discovery was how much the tiny catalog size distorted the results. The scoring logic itself worked correctly, but a 20-song library is so small that it regularly ran out of good options and had to return songs that were only loosely related to the user's request. The bias was not in the math — it was in the data. That felt like an important lesson: a well-designed algorithm can still produce misleading results if the dataset it runs on is unbalanced or incomplete.
+**What was my biggest learning moment?**
+
+The biggest learning moment was discovering that the bias in this system did not come from the scoring math — it came from the data. Before running the adversarial profiles, I assumed that if I got the weights right, the recommendations would feel right. That turned out to be wrong. The low-energy cluster bias (lofi songs appearing in hip-hop and metal playlists) persisted even after I doubled the weight on energy. No weight change could fix the problem because the problem was structural: the catalog simply had no mid-energy songs to compete for those lower-ranked slots. The algorithm was doing its job correctly. The data was the bottleneck. That separation — algorithm quality versus data quality — is not obvious until you watch a well-designed scorer produce a clearly wrong answer and have to trace backward to find out why.
+
+A second moment came when I built the `sad_banger` adversarial profile. I expected the system to fail in a dramatic or confusing way. Instead it failed in a completely logical way — it returned an angry metal song because angry and sad share low valence and high energy, and the math cannot tell those emotions apart. The system was not broken. It was just doing math in a domain where math alone is not enough. That felt important: knowing the limits of a tool is as valuable as knowing how to use it.
+
+**How did using AI tools help, and when did I need to double-check them?**
+
+AI tools helped most at the design stage. When I was deciding how to weight mood versus energy versus genre, I could describe the tradeoffs in plain language and get back a structured point recipe with reasoning attached. That saved a lot of trial-and-error. AI also helped me think through edge cases I would not have spotted on my own — for example, the idea of testing a "ghost genre" (a genre that does not exist in the catalog) came directly from asking for adversarial profile suggestions.
+
+Where I had to double-check: the AI suggested a valence target of 0.65 as a default in `score_song()`, and it took a few profile runs before I noticed that this default was silently influencing scores for profiles that never mentioned valence at all. The code was technically correct but the default value was a hidden assumption that could confuse anyone reading the output. I also had to verify that the `score_song()` function accepted both `"energy"` and `"target_energy"` as key names — the AI-generated code used one convention in the functional interface and a slightly different one in the OOP wrapper, and without testing both paths against real profiles I would not have caught the inconsistency.
+
+The general rule I landed on: use AI output to get 80% of the way there fast, then read every line carefully before trusting it, especially around key names, default values, and places where two interfaces have to agree with each other.
+
+**What surprised me about how a simple algorithm can still "feel" like a recommendation?**
+
+The biggest surprise was how much the explanation feature changed my perception of the results. When the terminal just printed "Library Rain — Score: 9.82," it felt arbitrary. When it printed "+3.0 mood matches 'chill' | +3.84 energy similarity (song 0.35, target 0.38) | +1.0 genre matches 'lofi'," it felt completely trustworthy — even though the underlying math had not changed at all. Explainability made the same result feel credible.
+
+The second surprise was how well the system handled the standard profiles. Storm Runner scored 9.91 out of 10 for the intense rock profile. That score required no tuning, no machine learning, and no behavioral data. Five multiplications and five additions, and the answer felt exactly right. A simple formula, applied consistently to well-labeled data, can produce results that feel intelligent — not because the algorithm is smart, but because the features capture something real about what listeners actually care about.
+
+**What would I try next?**
+
+Three concrete next steps, in priority order:
+
+1. **Add a diversity constraint.** After scoring, prevent the same genre from appearing more than once in the top 5. This one rule would fix most of the filter bubble behavior without changing any weights.
+
+2. **Add synonyms for mood and genre.** Map "chill" and "relaxed" to the same cluster, and "indie pop" and "pop" to the same cluster, so a user who types the wrong label still gets partial credit instead of zero. A small lookup table would work without any machine learning.
+
+3. **Replace the boolean `likes_acoustic` field with a float target.** The current `UserProfile` dataclass stores acousticness as a true/false flag, which the system then converts to 0.8 or 0.2. That means a user who wants "somewhat acoustic" has no way to express it. A float from 0.0 to 1.0 would make the acousticness signal as expressive as energy or valence, and it is a one-line change to the dataclass.
